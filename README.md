@@ -1,152 +1,96 @@
-# AI Infused — Class 1
+# AI Engineering · Class 3 — LangChain Agents (runnable code)
 
-From your first API call to a live AI app. Covers Groq (Qwen & GPT-OSS), web scraping, and Gradio UIs.
+Every file here matches a code block from the Class 3 deck. They are
+self-contained — run any one of them directly.
 
-## Prerequisites
+**Class materials (slides, recordings, resources):** [Google Drive](https://drive.google.com/drive/folders/1JV2aZ49WWw5nKCCwUuLWTwrkywl_mphv)
 
-- Python 3.9+
-- A [Groq API key](https://console.groq.com/keys) (free)
+---
 
-## Setup
+## One-time setup
 
-### 1. Clone the repo
-
+**macOS / Linux**
 ```bash
-git clone https://github.com/vinayakkumar/ai-infused-class-1.git
-cd ai-infused-class-1
-```
-
-### 2. Create and activate a virtual environment
-
-```bash
-python3 -m venv venv
+# 1. Create and activate a virtual environment
+python -m venv venv
 source venv/bin/activate
-```
 
-### 3. Install dependencies
-
-```bash
+# 2. Install dependencies
 pip install -r requirements.txt
+
+# 3. Add your Groq API key
+echo "GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxx" > .env
 ```
 
-### 4. Create a `.env` file
+**Windows (Command Prompt)**
+```cmd
+python -m venv venv
+venv\Scripts\activate
 
-Create a file named `.env` in the project root with your Groq API key:
+pip install -r requirements.txt
 
-```text
-GROQ_API_KEY=gsk_...
+echo GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxx > .env
 ```
 
----
+Get a free key at https://console.groq.com/keys
 
-## Files and what you see when you run them
+### Corporate / VPN network fix (SSL error)
 
-### `first_class.py` — Your very first API call
+If you see `CERTIFICATE_VERIFY_FAILED` when running any file, your network
+intercepts HTTPS traffic with a self-signed certificate. Fix it once:
 
+**macOS**
 ```bash
-python3 first_class.py
+security find-certificate -a -p /Library/Keychains/System.keychain >> $(python -c "import certifi; print(certifi.where())")
 ```
 
-Sends a single prompt to Groq using the `qwen/qwen3.8-27b` model.
-
-**What you see:** A witty travel tip for Bangalore printed in the terminal.
-
----
-
-### `groq_call.py` — Groq API call standalone
-
-```bash
-python3 groq_call.py
+**Windows (PowerShell)**
+```powershell
+$bundle = python -c "import certifi; print(certifi.where())"
+Get-ChildItem -Path Cert:\LocalMachine\Root | ForEach-Object {
+    $pem = "-----BEGIN CERTIFICATE-----`n" + [Convert]::ToBase64String($_.RawData, 'InsertLineBreaks') + "`n-----END CERTIFICATE-----`n"
+    Add-Content -Path $bundle -Value $pem
+}
 ```
 
-Same as above but as a clean standalone script using `qwen/qwen3.8-27b`.
-
-**What you see:** A travel suggestion for Bangalore printed in the terminal.
+> **Note:** If you recreate the venv, run the fix command again.
 
 ---
 
-### `class1.py` — Full class walkthrough (Steps 1 to 5)
+## Files — what each one does
 
-```bash
-python3 class1.py
-```
-
-Runs all 5 steps back to back:
-
-| Step | What happens | What you see |
-|------|-------------|--------------|
-| Step 1 | API call to Groq (`qwen/qwen3.8-27b`) | Travel tip printed in terminal |
-| Step 2 | Same prompt, different Groq model (`openai/gpt-oss-20b`) | Second travel tip printed |
-| Step 3 | Scraper defined — fetches and cleans a webpage | (no output, function defined) |
-| Step 4 | Summarizer defined — chains scraper + Groq | (no output, function defined) |
-| Step 5 | Gradio UI launches with the summarizer | Browser opens at `http://localhost:7860` with a text box to paste any URL |
+| File | What it shows | Run |
+|------|---------------|-----|
+| `b.py` | **Single-tool agent** — LangChain `create_agent` with one tool (`get_weather`). The simplest possible agent loop. | `python b.py` |
+| `a.py` | **Multi-tool agent** — same setup but with four tools (weather, add, multiply, population). Prints every tool call and result so you can see the agent's decision loop. | `python a.py` |
+| `scraper.py` | **Scraper helper** — turns any URL into plain readable text. No AI. Reused by `summarizer_langchain.py`. | `python scraper.py` |
+| `summarizer_langchain.py` | **LangChain chain** — the Class 1 summarizer rebuilt using `prompt \| model \| parser`. Shows the pipe syntax. | `python summarizer_langchain.py` |
+| `memory_demo.py` | **Memory (manual)** — hardcodes a chat history and passes it to the model. Demonstrates that "memory" is just re-sending past messages. | `python memory_demo.py` |
+| `memory_chat.py` | **Memory (auto)** — a real chat loop that appends each turn to the history automatically. Type `quit` to exit. | `python memory_chat.py` |
+| `agent.py` | **Raw agent** — same agent concept built with the plain OpenAI SDK (no LangChain). Shows the think → tool call → answer loop explicitly. | `python agent.py` |
+| `app.py` | **Gradio UI** — wraps `agent.py` in a chat interface with a public shareable link. | `python app.py` |
 
 ---
 
-### `app.py` — AI Website Summarizer (Gradio UI)
+## Models
 
-```bash
-python3 app.py
-```
+All models run on the **free Groq API** — same key, same endpoint.
 
-A one-page web app: paste any URL, get an AI summary.
-
-**What you see:**
-- Terminal prints the local URL: `http://localhost:7860`
-- Browser shows a text box labelled **Website URL**
-- Enter a URL → Groq reads the page and returns a markdown summary
+| File | Model | Why |
+|------|-------|-----|
+| `a.py`, `b.py` | `openai/gpt-oss-20b` | Agents need **tool/function calling** — the model must decide when to call a tool and parse its arguments. `openai/gpt-oss-20b` supports this on the free Groq plan. |
+| `agent.py`, `app.py` | `openai/gpt-oss-20b` | Same reason — raw tool-calling loop requires a function-calling capable model. |
+| `memory_chat.py`, `memory_demo.py` | `qwen/qwen3.8-27b` | Pure chat + memory, no tool calling needed. Matches the Class 1 model for consistency. |
+| `summarizer_langchain.py` | `qwen/qwen3.8-27b` | Text summarization — simple text-in / text-out, no tools needed. |
 
 ---
 
-### `arena_app.py` — LLM Arena (compare two models)
+## Notes
 
-```bash
-python3 arena_app.py
-```
+- `summarizer_langchain.py` imports `fetch_website_contents` from `scraper.py` — keep them in the same folder.
+- `app.py` imports `agent` from `agent.py` — keep them in the same folder.
+- Never commit `.env`. The included `.gitignore` already excludes it.
 
-Sends the same prompt to two different Groq models side by side and lets you vote.
+## Stop a running app
 
-**What you see:**
-- Terminal prints the local URL: `http://localhost:7860`
-- Browser shows a prompt box and two columns — **Model A** (`openai/gpt-oss-20b`) and **Model B** (`qwen/qwen3.8-27b`)
-- Click **Battle!** → both models answer simultaneously
-- Click 👍 or 👎 under each answer to vote for the better one
-
----
-
-### `scraper.py` — Website scraper (utility module)
-
-Not run directly. Imported by `app.py`, `class1.py`, and `summarizer.py`.
-
-Fetches a URL, strips scripts/navbars/footers, and returns clean text.
-
----
-
-### `summarizer.py` — Summarizer (utility module)
-
-Not run directly. Imported by `app.py`.
-
-Chains `scraper.py` → Groq (`openai/gpt-oss-20b`) to produce a markdown summary of any URL.
-
----
-
-### `arena.py` — Arena battle logic (snippet/reference)
-
-Not run directly. Contains the `battle()` function used as a reference for how `arena_app.py` works under the hood.
-
----
-
-## Models used
-
-| Model | Provider | Used in |
-|-------|----------|---------|
-| `qwen/qwen3.8-27b` | Groq (free) | `first_class.py`, `groq_call.py`, `class1.py` (Step 1), `arena_app.py` (Model B) |
-| `openai/gpt-oss-20b` | Groq (free) | `class1.py` (Step 2), `summarizer.py`, `app.py`, `arena_app.py` (Model A) |
-
----
-
-> **Note:** Always activate the virtual environment before running any script:
->
-> ```bash
-> source venv/bin/activate
-> ```
+Press `Ctrl + C` in the terminal.

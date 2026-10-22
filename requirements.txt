@@ -1,5 +1,10 @@
 openai
+langchain
+langchain-openai
+langchain-core
+langchain-groq
+langchain-google-genai
 gradio
-python-dotenv
 requests
 beautifulsoup4
+python-dotenv
