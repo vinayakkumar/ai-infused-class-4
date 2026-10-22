@@ -4,7 +4,4 @@ langchain-openai
 langchain-core
 langchain-groq
 langchain-google-genai
-gradio
-requests
-beautifulsoup4
 python-dotenv
