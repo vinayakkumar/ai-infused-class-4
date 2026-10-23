@@ -1,96 +1,69 @@
-# AI Engineering · Class 3 — LangChain Agents (runnable code)
+# Class 4 · RAG — Code Files
 
-Every file here matches a code block from the Class 3 deck. They are
-self-contained — run any one of them directly.
+One file per code block in the HTML guide.
 
-**Class materials (slides, recordings, resources):** [Google Drive](https://drive.google.com/drive/folders/1JV2aZ49WWw5nKCCwUuLWTwrkywl_mphv)
+```
+embeddings.py   ←→  Block 16  · cosine similarity demo
+chunk.py        ←→  Block 17  · chunking snippet (teaching only)
+index.py        ←→  Block 19  · step 1 — build vector store
+rag.py          ←→  Block 19  · step 2 — retrieve + answer
+rerank.py       ←→  Block 20  · reranking snippet (teaching only)
+pdf_chat.py     ←→  Block 21  · shippable Gradio app
+```
 
----
+## Setup
 
-## One-time setup
-
-**macOS / Linux**
 ```bash
-# 1. Create and activate a virtual environment
 python -m venv venv
-source venv/bin/activate
-
-# 2. Install dependencies
+source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-
-# 3. Add your Groq API key
-echo "GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxx" > .env
 ```
 
-**Windows (Command Prompt)**
-```cmd
-python -m venv venv
-venv\Scripts\activate
+Create a `.env` file with your Groq API key (free at console.groq.com):
 
-pip install -r requirements.txt
-
-echo GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxx > .env
+```
+GROQ_API_KEY=your_key_here
 ```
 
-Get a free key at https://console.groq.com/keys
+## Run order
 
-### Corporate / VPN network fix (SSL error)
-
-If you see `CERTIFICATE_VERIFY_FAILED` when running any file, your network
-intercepts HTTPS traffic with a self-signed certificate. Fix it once:
-
-**macOS**
 ```bash
-security find-certificate -a -p /Library/Keychains/System.keychain >> $(python -c "import certifi; print(certifi.where())")
+python embeddings.py        # no API key needed — local sentence-transformers
+python index.py             # builds ./chroma_db  (run once)
+python rag.py               # queries ./chroma_db via Groq
+python pdf_chat.py          # Gradio app — upload any PDF and chat with it
 ```
 
-**Windows (PowerShell)**
-```powershell
-$bundle = python -c "import certifi; print(certifi.where())"
-Get-ChildItem -Path Cert:\LocalMachine\Root | ForEach-Object {
-    $pem = "-----BEGIN CERTIFICATE-----`n" + [Convert]::ToBase64String($_.RawData, 'InsertLineBreaks') + "`n-----END CERTIFICATE-----`n"
-    Add-Content -Path $bundle -Value $pem
-}
-```
+## How pdf_chat.py retrieves answers
 
-> **Note:** If you recreate the venv, run the fix command again.
+Uses a two-stage retrieval pipeline for better accuracy:
 
----
+1. **Bi-encoder** (`all-MiniLM-L6-v2`) fetches 20 candidate chunks from Chroma via vector similarity.
+2. **Cross-encoder reranker** (`ms-marco-MiniLM-L6-v2`) scores each (question, chunk) pair precisely and keeps the top 5.
+3. Top 5 chunks are stuffed into the prompt and sent to **Groq** (`qwen/qwen3.8-27b`).
 
-## Files — what each one does
+`chunk.py` and `rerank.py` are teaching snippets — not standalone scripts.
 
-| File | What it shows | Run |
-|------|---------------|-----|
-| `b.py` | **Single-tool agent** — LangChain `create_agent` with one tool (`get_weather`). The simplest possible agent loop. | `python b.py` |
-| `a.py` | **Multi-tool agent** — same setup but with four tools (weather, add, multiply, population). Prints every tool call and result so you can see the agent's decision loop. | `python a.py` |
-| `scraper.py` | **Scraper helper** — turns any URL into plain readable text. No AI. Reused by `summarizer_langchain.py`. | `python scraper.py` |
-| `summarizer_langchain.py` | **LangChain chain** — the Class 1 summarizer rebuilt using `prompt \| model \| parser`. Shows the pipe syntax. | `python summarizer_langchain.py` |
-| `memory_demo.py` | **Memory (manual)** — hardcodes a chat history and passes it to the model. Demonstrates that "memory" is just re-sending past messages. | `python memory_demo.py` |
-| `memory_chat.py` | **Memory (auto)** — a real chat loop that appends each turn to the history automatically. Type `quit` to exit. | `python memory_chat.py` |
-| `agent.py` | **Raw agent** — same agent concept built with the plain OpenAI SDK (no LangChain). Shows the think → tool call → answer loop explicitly. | `python agent.py` |
-| `app.py` | **Gradio UI** — wraps `agent.py` in a chat interface with a public shareable link. | `python app.py` |
+## Key Changes
 
----
+### LLM provider: OpenAI → Groq
+- `rag.py` and `pdf_chat.py` switched from `langchain_openai / ChatOpenAI / gpt-4o-mini` to `langchain_groq / ChatGroq / qwen/qwen3.8-27b`.
+- Requires `GROQ_API_KEY` instead of `OPENAI_API_KEY`.
 
-## Models
+### requirements.txt — missing packages added
+Three packages were missing and caused `ModuleNotFoundError` on a fresh install:
 
-All models run on the **free Groq API** — same key, same endpoint.
+| Added | Needed by |
+|---|---|
+| `langchain-core` | `langchain_core.prompts` in `rag.py`, `pdf_chat.py` |
+| `langchain-text-splitters` | `langchain_text_splitters` in `chunk.py`, `index.py`, `pdf_chat.py` |
+| `numpy` | `numpy` in `embeddings.py` |
 
-| File | Model | Why |
-|------|-------|-----|
-| `a.py`, `b.py` | `openai/gpt-oss-20b` | Agents need **tool/function calling** — the model must decide when to call a tool and parse its arguments. `openai/gpt-oss-20b` supports this on the free Groq plan. |
-| `agent.py`, `app.py` | `openai/gpt-oss-20b` | Same reason — raw tool-calling loop requires a function-calling capable model. |
-| `memory_chat.py`, `memory_demo.py` | `qwen/qwen3.8-27b` | Pure chat + memory, no tool calling needed. Matches the Class 1 model for consistency. |
-| `summarizer_langchain.py` | `qwen/qwen3.8-27b` | Text summarization — simple text-in / text-out, no tools needed. |
+### pdf_chat.py — better retrieval (fixes missing answers)
+Before: `similarity_search(k=4)` — only 4 chunks, wrong pages returned for many questions.
 
----
+After: two-stage pipeline —
+1. Fetch 20 candidates via vector similarity.
+2. Rerank with CrossEncoder (`ms-marco-MiniLM-L6-v2`), keep top 5.
 
-## Notes
-
-- `summarizer_langchain.py` imports `fetch_website_contents` from `scraper.py` — keep them in the same folder.
-- `app.py` imports `agent` from `agent.py` — keep them in the same folder.
-- Never commit `.env`. The included `.gitignore` already excludes it.
-
-## Stop a running app
-
-Press `Ctrl + C` in the terminal.
+This fixes answers like "who is the author", "Introduction", etc. that were previously returning "I couldn't find that in the document."

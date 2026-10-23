@@ -1,7 +1,12 @@
-openai
 langchain
-langchain-openai
 langchain-core
 langchain-groq
-langchain-google-genai
+langchain-chroma
+langchain-huggingface
+langchain-community
+langchain-text-splitters
+pypdf
+sentence-transformers
+numpy
+gradio
 python-dotenv
